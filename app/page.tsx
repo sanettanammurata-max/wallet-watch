@@ -1,0 +1,36 @@
+import { and, desc, eq } from 'drizzle-orm'
+import Image from 'next/image'
+import { ArrowRight, BellRing, Eye, Lock, ShieldCheck, WalletCards } from 'lucide-react'
+import TelegramLoginButton from '@/components/TelegramLoginButton'
+import Dashboard from '@/components/dashboard-client'
+import { getVerifiedSession } from '@/app/actions/session'
+import { db } from '@/lib/db'
+import { monitoredWallet, securityAlert, securityUser } from '@/lib/db/schema'
+
+type Chain = 'BITCOIN' | 'ETHEREUM' | 'SOLANA' | 'STELLAR' | 'XRP'
+
+export default async function Page() {
+  const session = await getVerifiedSession()
+
+  if (session) {
+    const user = await db.select().from(securityUser).where(eq(securityUser.id, session.userId)).limit(1)
+    if (user[0]) {
+      const [walletRows, alertRows] = await Promise.all([
+        db.select().from(monitoredWallet).where(eq(monitoredWallet.userId, user[0].id)).orderBy(desc(monitoredWallet.createdAt)),
+        db.select().from(securityAlert).where(and(eq(securityAlert.userId, user[0].id), eq(securityAlert.resolved, false))).orderBy(desc(securityAlert.createdAt)),
+      ])
+      return <Dashboard telegramChatId={session.chatId} isPremium={user[0].isPremium} initialWallets={walletRows.map((wallet) => ({ id: wallet.id, chain: wallet.blockchain as Chain, address: wallet.walletAddress.length > 16 ? `${wallet.walletAddress.slice(0, 7)}…${wallet.walletAddress.slice(-5)}` : wallet.walletAddress, status: 'Active' as const }))} alerts={alertRows.map((alert) => ({ id: alert.id, blockchain: alert.blockchain as Chain, walletAddress: alert.walletAddress, alertType: alert.alertType, amount: alert.amount, tokenSymbol: alert.tokenSymbol, txHash: alert.txHash, resolved: alert.resolved, createdAt: alert.createdAt.toISOString() }))} />
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-background text-foreground">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 lg:px-10"><a href="/" className="flex items-center gap-3"><Image src="/icon.svg" alt="Solay39" width={38} height={38} className="rounded-lg" priority /><span className="font-mono text-sm font-bold tracking-[0.2em]">SOLAY39</span></a><a href="/dashboard" className="rounded-full border border-border px-4 py-2 text-xs font-medium transition-colors hover:border-primary hover:text-primary">Open safeguard</a></nav>
+      <section className="mx-auto max-w-6xl px-5 pb-16 pt-10 lg:px-10 lg:pb-24 lg:pt-20"><div className="grid overflow-hidden rounded-[2rem] border border-border bg-card lg:grid-cols-[1.15fr_0.85fr]"><div className="p-7 sm:p-12 lg:p-16"><p className="font-mono text-[10px] uppercase tracking-[0.24em] text-primary">SOLAY39 / ADDRESS DEFENSE</p><h1 className="mt-7 max-w-2xl text-5xl font-semibold leading-[0.96] tracking-[-0.06em] sm:text-7xl">Your address.<br /><span className="text-primary">Under watch.</span></h1><p className="mt-7 max-w-lg text-sm leading-7 text-muted-foreground sm:text-base">A safeguard layer for crypto wallet addresses. We observe the public blockchain activity. You keep every key, every asset, and every decision.</p><div className="mt-9 flex flex-col gap-3 sm:flex-row"><a href="/dashboard" className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground">Safeguard a wallet <ArrowRight className="size-4" /></a><a href="#process" className="inline-flex items-center justify-center rounded-xl border border-border px-5 py-3.5 text-sm font-medium">See the process</a></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-border pt-5 text-xs text-muted-foreground sm:grid-cols-3"><span className="flex items-center gap-2"><Lock className="size-3.5 text-primary" />No custody</span><span className="flex items-center gap-2"><WalletCards className="size-3.5 text-primary" />5 networks</span><span className="hidden items-center gap-2 sm:flex"><BellRing className="size-3.5 text-primary" />Telegram alerts</span></div></div><div className="flex min-h-[360px] flex-col justify-between bg-primary p-7 text-primary-foreground sm:p-10"><div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-[0.2em]">Protection layer</span><span className="flex items-center gap-2 font-mono text-[10px]"><span className="size-2 rounded-full bg-primary-foreground" />READY</span></div><div><div className="flex size-20 items-center justify-center rounded-3xl border border-primary-foreground/30 bg-primary-foreground/10"><ShieldCheck className="size-10" /></div><h2 className="mt-7 text-3xl font-semibold tracking-tight">Observe.<br />Verify.<br />Respond.</h2><p className="mt-4 max-w-xs text-sm leading-6 text-primary-foreground/75">Connect a public address and receive a Telegram signal when movement is detected.</p></div><div className="flex items-center gap-2 border-t border-primary-foreground/20 pt-5 text-xs text-primary-foreground/75"><Eye className="size-4" />Live blockchain observation</div></div></div></section>
+      <section id="process" className="mx-auto max-w-6xl px-5 pb-20 lg:px-10"><div className="mb-8 flex items-end justify-between border-b border-border pb-5"><div><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">How it works</p><h2 className="mt-3 text-3xl font-semibold tracking-tight">A clear signal, not a black box.</h2></div></div><div className="grid gap-4 md:grid-cols-3"><Process title="Register" number="01" text="Choose BTC, ETH, SOL, XLM or XRP and paste only the public wallet address." /><Process title="Observe" number="02" text="Network-specific providers read activity and match it to your safeguarded address." /><Process title="Alert" number="03" text="A transaction event becomes a Telegram notification on your phone." /></div></section>
+      <footer className="border-t border-border"><div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-7 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between lg:px-10"><span className="font-mono tracking-[0.18em] text-primary">SOLAY39</span><span>Public address monitoring. Never enter a seed phrase.</span></div></footer>
+    </main>
+  )
+}
+
+function Process({ number, title, text }: { number: string; title: string; text: string }) { return <article className="rounded-2xl border border-border bg-card p-6"><span className="font-mono text-xs text-primary">{number}</span><h3 className="mt-10 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-muted-foreground">{text}</p></article> }
