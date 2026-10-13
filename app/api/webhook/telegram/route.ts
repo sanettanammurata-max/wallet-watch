@@ -16,7 +16,10 @@ export async function POST(request: Request) {
     await sendTelegramMessage(String(chatId), `Dashboard Sentinella:\n${publicDashboardUrl()}\n\nDopo l'accesso, incolla un indirizzo pubblico e premi “Start monitoring”.`)
   } else if (text) {
     const user = await db.select({ id: securityUser.id }).from(securityUser).where(eq(securityUser.telegramChatId, String(chatId))).limit(1)
-    if (user[0]) await sendTelegramMessage(String(chatId), `Ho ricevuto il messaggio. Per aggiungere o gestire un wallet usa la dashboard:\n${publicDashboardUrl()}`)
+    const message = user[0]
+      ? `Ho ricevuto il messaggio. Per aggiungere o gestire un wallet usa la dashboard:\n${publicDashboardUrl()}`
+      : `Prima apri la dashboard e completa l'accesso con Telegram. Poi incolla lì l'indirizzo pubblico del wallet:\n${publicDashboardUrl()}`
+    await sendTelegramMessage(String(chatId), message)
   }
 
   return NextResponse.json({ ok: true })
