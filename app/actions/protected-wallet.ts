@@ -62,9 +62,14 @@ export async function addProtectedWallet(input: unknown) {
     } catch (providerError) {
       console.error('[v0] Provider webhook registration skipped:', providerError)
     }
-    await sendTelegramMessage(String(user[0].telegramChatId), `Wallet aggiunto correttamente.\n\nRete: ${blockchain}\nIndirizzo: ${address}\n\nIl monitoraggio è attivo. Ti avviserò qui quando rileverò un movimento.`)
+    let telegramNotified = false
+    try {
+      telegramNotified = await sendTelegramMessage(String(user[0].telegramChatId), `Wallet aggiunto correttamente.\n\nRete: ${blockchain}\nIndirizzo: ${address}\n\nIl monitoraggio è attivo. Ti avviserò qui quando rileverò un movimento.`)
+    } catch (telegramError) {
+      console.error('[v0] Telegram notification failed after wallet save:', telegramError)
+    }
     revalidatePath('/')
-    return { success: true, walletId, blockchain, walletAddress: address }
+    return { success: true, walletId, blockchain, walletAddress: address, telegramNotified }
   } catch (error) {
     if (isDuplicateError(error)) return { success: false, error: 'This wallet is already protected.' as const }
     console.error('[v0] Secure wallet registration failed:', error)
