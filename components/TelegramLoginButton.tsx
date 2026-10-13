@@ -26,11 +26,7 @@ export default function TelegramLoginButton() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const botUsername = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'sentinella_shield_bot')
-      .trim()
-      .replace(/^['"]|['"]$/g, '')
-      .replace(/^@/, '')
-      .trim()
+    const botUsername = 'sentinella_shield_bot'
     if (!botUsername) {
       setError('Telegram login is not configured.')
       return
