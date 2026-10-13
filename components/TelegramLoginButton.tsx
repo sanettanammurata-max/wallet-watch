@@ -20,13 +20,16 @@ declare global {
   }
 }
 
+const TELEGRAM_BOT_USERNAME = 'sentinella_shield_bot'
+
 export default function TelegramLoginButton() {
   const containerRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const [error, setError] = useState('')
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   useEffect(() => {
-    const botUsername = 'sentinella_shield_bot'
+    const botUsername = TELEGRAM_BOT_USERNAME
     if (!botUsername) {
       setError('Telegram login is not configured.')
       return
@@ -34,6 +37,7 @@ export default function TelegramLoginButton() {
 
     window.onTelegramAuth = async (user) => {
       setError('')
+      setIsAuthenticating(true)
       const response = await fetch('/api/auth/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,6 +45,7 @@ export default function TelegramLoginButton() {
       })
       const result = await response.json()
       if (!response.ok || !result.success) {
+        setIsAuthenticating(false)
         setError(result.error ?? 'Telegram identity validation failed.')
         return
       }
@@ -79,6 +84,13 @@ export default function TelegramLoginButton() {
         <div className="mt-8 rounded-2xl border border-border bg-background/70 p-5">
           <div className="flex items-center gap-2 text-sm font-medium"><LockKeyhole className="size-4 text-primary" />Secure Telegram sign-in</div>
           <div ref={containerRef} className="mt-5 flex min-h-12 justify-center" aria-label="Telegram login widget" />
+          <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
+            Dopo il click, Telegram apre una pagina di conferma. Conferma l&apos;accesso nel messaggio ricevuto da Telegram, poi torna qui: verrai portato automaticamente alla dashboard.
+          </p>
+          <a href={`https://t.me/${TELEGRAM_BOT_USERNAME}`} target="_blank" rel="noreferrer" className="mt-3 block text-center text-xs font-medium text-primary underline-offset-4 hover:underline">
+            Apri direttamente @{TELEGRAM_BOT_USERNAME}
+          </a>
+          {isAuthenticating && <p className="mt-4 text-center text-xs text-primary">Accesso confermato, apertura dashboard…</p>}
           {error && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">{error}</p>}
         </div>
         <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground"><ArrowRight className="size-3.5 text-primary" />No passwords. No private keys. Just verified access.</div>
