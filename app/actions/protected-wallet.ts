@@ -17,6 +17,7 @@ import {
   type BlockchainType,
 } from '@/lib/db/schema'
 import { registerProviderWebhook } from '@/app/actions/radar'
+import { sendTelegramMessage } from '@/lib/telegram-bot'
 
 const addWalletSchema = z.object({
   blockchain: z.enum(['BITCOIN', 'ETHEREUM', 'SOLANA', 'STELLAR', 'XRP']),
@@ -61,6 +62,7 @@ export async function addProtectedWallet(input: unknown) {
     } catch (providerError) {
       console.error('[v0] Provider webhook registration skipped:', providerError)
     }
+    await sendTelegramMessage(String(user[0].telegramChatId), `Wallet aggiunto correttamente.\n\nRete: ${blockchain}\nIndirizzo: ${address}\n\nIl monitoraggio è attivo. Ti avviserò qui quando rileverò un movimento.`)
     revalidatePath('/')
     return { success: true, walletId, blockchain, walletAddress: address }
   } catch (error) {

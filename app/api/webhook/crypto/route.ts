@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { monitoredWallet, securityAlert, securityUser, getExplorerUrl, isBlockchainType, truncateForMessage } from '@/lib/db/schema'
+import { sendTelegramMessage } from '@/lib/telegram-bot'
 
 function isValidSignature(rawBody: string, signature: string | null) {
   const secret = process.env.WEBHOOK_SIGNING_SECRET
@@ -97,14 +98,7 @@ export async function POST(request: Request) {
         `Ledger proof: ${getExplorerUrl(blockchain, txHash)}`,
       ].join('\n')
 
-      const telegramResponse = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chat_id: user.telegramChatId, text, disable_web_page_preview: true }),
-      })
-      if (!telegramResponse.ok) {
-        console.error('[v0] Telegram alert delivery failed:', await telegramResponse.text())
-      }
+      await sendTelegramMessage(String(user.telegramChatId), text)
     }
 
     return NextResponse.json({ success: true, duplicate: insertResult.length === 0, trackingId: txHash })
