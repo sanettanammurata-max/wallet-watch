@@ -29,16 +29,22 @@ export async function fetchLatestTransaction(blockchain: BlockchainType, address
   if (blockchain === 'ETHEREUM') {
     const key = process.env.ALCHEMY_API_KEY
     if (!key) throw new Error('ALCHEMY_API_KEY is not configured')
-    const data = await getJson<{ result?: Array<{ hash: string; from: string; to: string; value: string }> }>(`https://eth-mainnet.g.alchemy.com/v2/${key}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'alchemy_getAssetTransfers', params: [{ fromBlock: '0x0', toBlock: 'latest', fromAddress: address, category: ['external'], maxCount: '0x1', withMetadata: false }] }) })
-    const tx = data.result?.[0]
+    const requestTransfers = async (direction: 'fromAddress' | 'toAddress') => getJson<{ result?: Array<{ hash: string; from: string; to: string; value: string }> }>(`https://eth-mainnet.g.alchemy.com/v2/${key}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'alchemy_getAssetTransfers', params: [{ fromBlock: '0x0', toBlock: 'latest', [direction]: address, category: ['external'], maxCount: '0x1', withMetadata: false }] }) })
+    const outgoing = (await requestTransfers('fromAddress')).result?.[0]
+    const tx = outgoing ?? (await requestTransfers('toAddress')).result?.[0]
     return tx ? { address, blockchain, txHash: tx.hash, amount: String(tx.value || '0'), token: 'ETH', from: tx.from, to: tx.to } : null
   }
 
   if (blockchain === 'SOLANA') {
     const key = process.env.HELIUS_API_KEY
-    if (!key) throw new Error('HELIUS_API_KEY is not configured')
-    const rows = await getJson<Array<{ signature: string; description?: string; source?: string; type?: string }>>(`https://api.helius.xyz/v0/addresses/${encodeURIComponent(address)}/transactions?api-key=${key}&limit=1`)
-    const tx = rows[0]
+    if (key) {
+      const rows = await getJson<Array<{ signature: string; description?: string; source?: string; type?: string }>>(`https://api.helius.xyz/v0/addresses/${encodeURIComponent(address)}/transactions?api-key=${key}&limit=1`)
+      const tx = rows[0]
+      return tx ? { address, blockchain, txHash: tx.signature, amount: '0', token: 'SOL', from: tx.source ?? '', to: address } : null
+    }
+
+    const rpc = await getJson<{ result?: Array<{ signature: string }> }>('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getSignaturesForAddress', params: [address, { limit: 1 }] }) })
+    const tx = rpc.result?.[0]
     return tx ? { address, blockchain, txHash: tx.signature, amount: '0', token: 'SOL', from: '', to: address } : null
   }
 

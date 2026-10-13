@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { monitoredWallet, securityUser, isBlockchainType } from '@/lib/db/schema'
+import { monitoredWallet, securityAlert, securityUser, isBlockchainType } from '@/lib/db/schema'
 import { fetchLatestTransaction } from '@/lib/blockchain/providers'
 
 export async function GET(request: Request) {
@@ -18,6 +18,13 @@ export async function GET(request: Request) {
     try {
       const transaction = await fetchLatestTransaction(wallet.blockchain, wallet.walletAddress)
       if (!transaction) continue
+
+      const alreadyProcessed = await db.select({ id: securityAlert.id }).from(securityAlert).where(eq(securityAlert.txHash, transaction.txHash)).limit(1)
+      if (alreadyProcessed.length) {
+        results.push({ wallet: wallet.id, status: 'duplicate', txHash: transaction.txHash })
+        continue
+      }
+
       const response = await fetch(new URL('/api/webhook/crypto', request.url), {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-webhook-signature': await sign(JSON.stringify(transaction)) },
