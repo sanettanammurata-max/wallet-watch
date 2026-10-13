@@ -44,7 +44,7 @@ export default function TelegramLoginButton() {
         setError(result.error ?? 'Telegram identity validation failed.')
         return
       }
-      router.replace('/')
+      router.replace('/dashboard')
       router.refresh()
     }
 
